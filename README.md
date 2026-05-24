@@ -1,31 +1,43 @@
 # LessScreen
 
-A native Android app that tracks how much time you spend in specific social
-media apps. Phase 1: local-only, single user, today's usage.
+Track how little time you spend in algorithm-based apps (Instagram, TikTok,
+YouTube, Facebook, X, LinkedIn). Compete with friends — lowest wins.
 
 ## Tech
 
-- Kotlin + Jetpack Compose
+- Native Android (Kotlin + Jetpack Compose), min SDK 26
 - `UsageStatsManager` for screen-time data
-- Min SDK 26 (Android 8.0)
+- Supabase (Postgres + Auth) for accounts, friends, and leaderboard
+
+## One-time setup (you, the owner)
+
+1. Create a Supabase project at https://supabase.com — free tier is fine.
+2. Open **SQL Editor** → New query → paste the contents of
+   [`supabase/schema.sql`](supabase/schema.sql) → Run. Sets up tables, RLS,
+   and the auto-profile trigger.
+3. (Optional, recommended for v0.2.0) **Authentication → Providers → Email** →
+   turn **Confirm email** off. Otherwise users have to click a confirmation link.
+4. **Project Settings → API** → copy **Project URL** and **anon public** key.
+5. Paste both into [`app/src/main/kotlin/com/yanivrw/lessscreen/SupabaseConfig.kt`](app/src/main/kotlin/com/yanivrw/lessscreen/SupabaseConfig.kt)
+   and commit + push. The GitHub Actions build will produce a new APK.
 
 ## Get the APK
 
-Every push to `main` triggers a GitHub Actions build. To download:
+Every push to `main` triggers a GitHub Actions build. Latest release:
+https://github.com/YanivRW/lessscreen/releases
 
-1. Go to the **Actions** tab in this repo.
-2. Click the latest successful **Build Android APK** run.
-3. Scroll to **Artifacts** and download `LessScreen-debug-apk`.
-4. Unzip to get `app-debug.apk`.
-5. Transfer to your phone (USB, Drive, email) and tap it. Approve "install
-   from unknown source" if prompted.
+Download `app-debug.apk`, transfer to your Android phone, install, grant
+**Usage Access** in Settings.
 
-## First-run permission
+## Friends / leaderboard
 
-On launch the app will ask you to grant **Usage Access** in system Settings.
-Tap "Open Settings", find LessScreen in the list, toggle it on, hit back.
-The screen will refresh and show today's usage.
+- After sign-up, your unique 6-char invite code appears on the **Friends** tab.
+- Share it (Copy or Share button). Anyone who pastes it into their **Friends → Add
+  by code** is mutually added — both of you see each other's daily totals.
+- The **Scoreboard** tab lists you + friends, ascending by today's total minutes.
 
-## Build locally
+## Roadmap
 
-If you have Android Studio installed, open the project and hit Run.
+- v0.2: auth, friends, leaderboard, daily upload  ← *current*
+- v0.3: 7-day chart, per-app breakdown for friends, streaks
+- v0.4: Google sign-in, push notifications, weekly competitions
