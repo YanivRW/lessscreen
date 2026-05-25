@@ -38,17 +38,30 @@ object AuthRepository {
     suspend fun signInWithGoogle(context: Context) {
         val credentialManager = CredentialManager.create(context)
 
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)   // show all accounts, not just pre-authorized
-            .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
-            .build()
-
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-
-        val result = credentialManager.getCredential(context, request)
-        val credential = result.credential
+        // Try returning-user flow first (silent, uses saved credentials).
+        // If no saved credentials exist, fall back to the full account picker.
+        val credential = try {
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(
+                    GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(true)
+                        .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
+                        .build()
+                )
+                .build()
+            credentialManager.getCredential(context, request).credential
+        } catch (_: androidx.credentials.exceptions.NoCredentialException) {
+            // No saved credential — show the full account picker.
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(
+                    GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(false)
+                        .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
+                        .build()
+                )
+                .build()
+            credentialManager.getCredential(context, request).credential
+        }
 
         if (credential is CustomCredential &&
             credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
