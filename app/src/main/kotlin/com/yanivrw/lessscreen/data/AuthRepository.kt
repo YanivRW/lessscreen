@@ -5,6 +5,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.yanivrw.lessscreen.GoogleConfig
 import com.yanivrw.lessscreen.data.models.Profile
@@ -38,20 +39,18 @@ object AuthRepository {
     suspend fun signInWithGoogle(context: Context) {
         val credentialManager = CredentialManager.create(context)
 
-        // Try returning-user flow first (silent, uses saved credentials).
-        // If no saved credentials exist, fall back to the full account picker.
+        // GetSignInWithGoogleOption always shows the full account picker —
+        // the correct choice for new users / first-time sign-in.
+        // Fall back to GetGoogleIdOption (returning users) only if this fails.
         val credential = try {
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(
-                    GetGoogleIdOption.Builder()
-                        .setFilterByAuthorizedAccounts(true)
-                        .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
-                        .build()
+                    GetSignInWithGoogleOption.Builder(GoogleConfig.WEB_CLIENT_ID).build()
                 )
                 .build()
             credentialManager.getCredential(context, request).credential
-        } catch (_: androidx.credentials.exceptions.NoCredentialException) {
-            // No saved credential — show the full account picker.
+        } catch (_: Exception) {
+            // Fallback: try the returning-user flow
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(
                     GetGoogleIdOption.Builder()
