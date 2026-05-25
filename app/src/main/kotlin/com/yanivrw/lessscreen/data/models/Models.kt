@@ -1,5 +1,6 @@
 package com.yanivrw.lessscreen.data.models
 
+import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -30,4 +31,14 @@ data class LeaderboardEntry(
     val displayName: String,
     val minutesToday: Int,
     val isMe: Boolean,
+)
+
+// One entry per user for the 7-day chart.
+data class UserHistory(
+    val userId: String,
+    val displayName: String,
+    val isMe: Boolean,
+    val dailyMinutes: List<Int>,   // index 0 = 6 days ago … index 6 = today
+    val color: Color,
+    val dateLabels: List<String>,  // "DD" for each day
 )

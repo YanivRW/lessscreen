@@ -37,6 +37,7 @@ import com.yanivrw.lessscreen.data.AppUsage
 import com.yanivrw.lessscreen.data.UsageRepository
 import com.yanivrw.lessscreen.permission.hasUsageAccess
 import com.yanivrw.lessscreen.permission.openUsageAccessSettings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -48,6 +49,7 @@ fun ResultsScreen() {
     var hasPermission by remember { mutableStateOf(hasUsageAccess(context)) }
     var usage by remember { mutableStateOf<List<AppUsage>>(emptyList()) }
 
+    // Re-check permission + load on every resume
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -63,13 +65,23 @@ fun ResultsScreen() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Auto-refresh every 60 seconds while the screen is visible.
+    // usageToday() already queries from start of current calendar day,
+    // so it resets automatically at midnight with no extra logic needed.
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            while (true) {
+                delay(60_000)
+                usage = repo.usageToday()
+                scope.launch { runCatching { repo.uploadToday() } }
+            }
+        }
+    }
+
     if (!hasPermission) {
         PermissionPrompt(onGrant = { openUsageAccessSettings(context) })
     } else {
-        UsageList(usage, onRefresh = {
-            usage = repo.usageToday()
-            scope.launch { runCatching { repo.uploadToday() } }
-        })
+        UsageList(usage)
     }
 }
 
@@ -96,14 +108,12 @@ private fun PermissionPrompt(onGrant: () -> Unit) {
 }
 
 @Composable
-private fun UsageList(usage: List<AppUsage>, onRefresh: () -> Unit) {
+private fun UsageList(usage: List<AppUsage>) {
     val total = usage.sumOf { it.minutes }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text("Today", color = Color(0xFFB0B0B0), fontSize = 14.sp)
         Text("$total min", color = Color.White, fontSize = 56.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onRefresh) { Text("Refresh") }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(usage) { app ->
                 Card(
