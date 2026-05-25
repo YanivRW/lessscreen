@@ -17,6 +17,8 @@ import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
+import java.security.MessageDigest
+import java.util.UUID
 
 object AuthRepository {
 
@@ -37,29 +39,42 @@ object AuthRepository {
     }
 
     suspend fun signInWithGoogle(context: Context) {
+        // Generate a nonce — required by Google to prevent replay attacks.
+        // We send the SHA-256 hash to Google and the raw value to Supabase;
+        // Supabase hashes it again and checks it matches what Google received.
+        val rawNonce = UUID.randomUUID().toString()
+        val hashedNonce = MessageDigest.getInstance("SHA-256")
+            .digest(rawNonce.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
         val credentialManager = CredentialManager.create(context)
 
-        // GetSignInWithGoogleOption always shows the full account picker —
-        // the correct choice for new users / first-time sign-in.
-        // Fall back to GetGoogleIdOption (returning users) only if this fails.
         val credential = try {
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(
-                    GetSignInWithGoogleOption.Builder(GoogleConfig.WEB_CLIENT_ID).build()
-                )
-                .build()
-            credentialManager.getCredential(context, request).credential
+            // Primary: full account picker (new users)
+            credentialManager.getCredential(
+                context,
+                GetCredentialRequest.Builder()
+                    .addCredentialOption(
+                        GetSignInWithGoogleOption.Builder(GoogleConfig.WEB_CLIENT_ID)
+                            .setNonce(hashedNonce)
+                            .build()
+                    )
+                    .build()
+            ).credential
         } catch (_: Exception) {
-            // Fallback: try the returning-user flow
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(
-                    GetGoogleIdOption.Builder()
-                        .setFilterByAuthorizedAccounts(false)
-                        .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
-                        .build()
-                )
-                .build()
-            credentialManager.getCredential(context, request).credential
+            // Fallback: returning-user flow
+            credentialManager.getCredential(
+                context,
+                GetCredentialRequest.Builder()
+                    .addCredentialOption(
+                        GetGoogleIdOption.Builder()
+                            .setFilterByAuthorizedAccounts(false)
+                            .setServerClientId(GoogleConfig.WEB_CLIENT_ID)
+                            .setNonce(hashedNonce)
+                            .build()
+                    )
+                    .build()
+            ).credential
         }
 
         if (credential is CustomCredential &&
@@ -69,6 +84,7 @@ object AuthRepository {
             supabase.auth.signInWith(IDToken) {
                 idToken = googleIdTokenCredential.idToken
                 provider = Google
+                nonce = rawNonce   // raw nonce — Supabase hashes it to verify against Google
             }
         } else {
             error("Unexpected credential type: ${credential.type}")
