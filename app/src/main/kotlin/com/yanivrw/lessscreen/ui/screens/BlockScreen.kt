@@ -97,7 +97,7 @@ class BlockViewModel : ViewModel() {
     fun loadSchedules() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            BlockRepository.loadSchedules()
+            runCatching { BlockRepository.loadSchedules() }
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -106,17 +106,19 @@ class BlockViewModel : ViewModel() {
         viewModelScope.launch {
             val userId = AuthRepository.currentUserId() ?: return@launch
             for (pkg in draft.selectedPackages) {
-                BlockRepository.saveSchedule(
-                    BlockSchedule(
-                        id = UUID.randomUUID().toString(),
-                        userId = userId,
-                        packageName = pkg,
-                        isAllDay = draft.isAllDay,
-                        startTime = if (draft.isAllDay) null else "%02d:%02d".format(draft.startHour, draft.startMinute),
-                        endTime = if (draft.isAllDay) null else "%02d:%02d".format(draft.endHour, draft.endMinute),
-                        recurrenceDays = draft.recurrenceDays.sorted(),
+                runCatching {
+                    BlockRepository.saveSchedule(
+                        BlockSchedule(
+                            id = UUID.randomUUID().toString(),
+                            userId = userId,
+                            packageName = pkg,
+                            isAllDay = draft.isAllDay,
+                            startTime = if (draft.isAllDay) null else "%02d:%02d".format(draft.startHour, draft.startMinute),
+                            endTime = if (draft.isAllDay) null else "%02d:%02d".format(draft.endHour, draft.endMinute),
+                            recurrenceDays = draft.recurrenceDays.sorted(),
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -124,12 +126,12 @@ class BlockViewModel : ViewModel() {
     fun toggleSchedule(id: String, enabled: Boolean) {
         viewModelScope.launch {
             val s = BlockRepository.schedules.value.find { it.id == id } ?: return@launch
-            BlockRepository.saveSchedule(s.copy(isEnabled = enabled))
+            runCatching { BlockRepository.saveSchedule(s.copy(isEnabled = enabled)) }
         }
     }
 
     fun deleteSchedule(id: String) {
-        viewModelScope.launch { BlockRepository.deleteSchedule(id) }
+        viewModelScope.launch { runCatching { BlockRepository.deleteSchedule(id) } }
     }
 }
 

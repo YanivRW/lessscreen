@@ -83,16 +83,22 @@ object BlockRepository {
     }
 
     private fun enqueue(op: PendingOp) {
+        if (!::prefs.isInitialized) return
         val ops = dequeueAll().toMutableList().also { it.add(op) }
         prefs.edit().putString("queue", json.encodeToString(ops)).apply()
     }
 
-    private fun dequeueAll(): List<PendingOp> =
-        prefs.getString("queue", null)
+    private fun dequeueAll(): List<PendingOp> {
+        if (!::prefs.isInitialized) return emptyList()
+        return prefs.getString("queue", null)
             ?.let { runCatching { json.decodeFromString<List<PendingOp>>(it) }.getOrNull() }
             ?: emptyList()
+    }
 
-    private fun clearQueue() = prefs.edit().remove("queue").apply()
+    private fun clearQueue() {
+        if (!::prefs.isInitialized) return
+        prefs.edit().remove("queue").apply()
+    }
 
     @Serializable
     private data class PendingOp(val type: String, val data: String)
