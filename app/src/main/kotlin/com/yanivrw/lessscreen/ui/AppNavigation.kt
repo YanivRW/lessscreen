@@ -22,17 +22,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.yanivrw.lessscreen.data.AuthRepository
-import kotlinx.coroutines.launch
+import com.yanivrw.lessscreen.ui.screens.BlockScreen
 import com.yanivrw.lessscreen.ui.screens.FriendsScreen
 import com.yanivrw.lessscreen.ui.screens.LeaderboardScreen
 import com.yanivrw.lessscreen.ui.screens.ResultsScreen
 import com.yanivrw.lessscreen.ui.screens.SignInScreen
 import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.launch
 
 private object Routes {
     const val RESULTS = "results"
     const val FRIENDS = "friends"
     const val LEADERBOARD = "leaderboard"
+    const val BLOCK = "block"
 }
 
 @Composable
@@ -57,6 +59,7 @@ private fun SignedInApp() {
         Routes.RESULTS to "Today",
         Routes.LEADERBOARD to "Scoreboard",
         Routes.FRIENDS to "Friends",
+        Routes.BLOCK to "Block",
     )
 
     Scaffold(
@@ -103,6 +106,7 @@ private fun SignedInApp() {
             composable(Routes.RESULTS) { ResultsScreen() }
             composable(Routes.LEADERBOARD) { LeaderboardScreen() }
             composable(Routes.FRIENDS) { FriendsScreen() }
+            composable(Routes.BLOCK) { BlockScreen() }
         }
     }
 }

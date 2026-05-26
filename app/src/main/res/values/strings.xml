@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">LessScreen</string>
+    <string name="accessibility_service_description">LessScreen uses accessibility to detect when a blocked app is opened and show a reminder overlay.</string>
 </resources>

@@ -54,10 +54,28 @@ create table if not exists public.daily_usage (
   primary key (user_id, date)
 );
 
--- 4. Row-Level Security -------------------------------------------------------
-alter table public.profiles    enable row level security;
-alter table public.friends     enable row level security;
-alter table public.daily_usage enable row level security;
+-- 4. Blocking schedules -------------------------------------------------------
+-- R7: per-user, per-app blocking rules with time windows and recurrence.
+-- R8: locked_by_user_id reserved for future friend-lock feature (null for now).
+create table if not exists public.blocking_schedules (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null references public.profiles(id) on delete cascade,
+  package_name        text not null,
+  is_all_day          boolean not null default false,
+  start_time          time,                      -- null when is_all_day = true
+  end_time            time,                      -- null when is_all_day = true
+  recurrence_days     int[] not null default '{}', -- 1=Mon..7=Sun; empty = every day
+  is_enabled          boolean not null default true,
+  locked_by_user_id   uuid references public.profiles(id), -- future friend-lock, null now
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+-- 5. Row-Level Security -------------------------------------------------------
+alter table public.profiles           enable row level security;
+alter table public.friends            enable row level security;
+alter table public.daily_usage        enable row level security;
+alter table public.blocking_schedules enable row level security;
 
 -- profiles: anyone signed-in can read (needed for invite-code lookup);
 --           only the owner can update/insert their row.
@@ -92,6 +110,12 @@ create policy friends_delete on public.friends
 -- daily_usage: owner can read/write own rows.
 drop policy if exists usage_own on public.daily_usage;
 create policy usage_own on public.daily_usage
+  for all using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- blocking_schedules: owner can read/write/delete own rows only.
+drop policy if exists blocking_schedules_all on public.blocking_schedules;
+create policy blocking_schedules_all on public.blocking_schedules
   for all using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
