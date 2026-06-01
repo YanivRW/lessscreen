@@ -26,7 +26,7 @@ begin
     new.email,
     upper(substring(encode(gen_random_bytes(6), 'base64') from 1 for 6))
   )
-  on conflict (id) do nothing;
+  on conflict do nothing;
   return new;
 end;
 $$;
