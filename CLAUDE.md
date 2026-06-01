@@ -109,28 +109,20 @@ customizable is a planned feature — see product direction.
 
 ## Status
 
-**Working:** email sign-up/sign-in + session persistence · today screen
-(per-app usage, 60s auto-refresh, midnight reset, uploads to Supabase, permission
-prompt) · scoreboard (7-day line chart, today's ranking with medals) · friends
-(invite code, copy/share, add by code, mutual friendship, list).
+**Working:** email sign-up/sign-in + session persistence · Google Sign-In ·
+today screen (per-app usage, 60s auto-refresh, midnight reset, uploads to
+Supabase, permission prompt) · scoreboard (7-day line chart, today's ranking
+with medals) · friends (invite code, copy/share, add by code, mutual
+friendship, list).
 
-**In progress:** Google Sign-In — SHA-1 mismatch fixed (2026-06-01, new keystore
-+ new fingerprint registered in Google Cloud). Now blocked on Supabase audience
-mismatch: ID token's `aud` is the Web client ID, but Supabase →
-Authentication → Providers → Google has a different Client ID configured. Next
-step: set "Authorized Client IDs" in Supabase to
-`846082142354-t0uud57mv19lt618nmto47jent3hut81.apps.googleusercontent.com`
-and paste the Web client's secret. Full history in
-`.claude/rules/google-signin-detail.md`. Email/password remains the working
-fallback.
-
-**Open (next session):** "Database error saving new user" when signing up a
-second account from the same phone with a different email. Likely the
-`on_auth_user_created` trigger throwing on a unique-constraint violation in
-`profiles.email` or `profiles.invite_code`. Need a Supabase → Logs → Postgres
-Logs capture at the time of failure to identify the constraint. Also check that
-the prior user wasn't still signed in when retrying — `AuthRepository.signUp`
-doesn't call `signOut` first.
+**Auth fixes shipped 2026-06-01:**
+- `pgcrypto` extension enabled on Supabase — root cause of "Database error
+  saving new user" (gen_random_bytes wasn't available, trigger threw on every
+  signup).
+- Google Sign-In unblocked: stable keystore SHA-1 registered, Supabase Google
+  provider configured with Web client ID + secret.
+- `AuthRepository.signUp` now signs out any active session before creating a
+  new account.
 
 **Known quirks:** scoreboard chart needs ≥1 day of data per user to draw a line ·
 `UsageStatsManager` only reports apps the user has actually opened (new installs

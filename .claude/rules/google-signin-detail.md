@@ -1,11 +1,11 @@
 # Google Sign-In — detailed config & debugging history
 
-> Active debugging. Email/password still works as fallback. This file captures
-> the full state so we don't repeat dead ends.
+> **Resolved 2026-06-01.** Both Google Sign-In and new-user signup are working.
+> This file is kept for historical context only.
 
 ## Current status
 
-**Two fixes in, one to go.**
+**All three issues fixed.**
 
 1. ✅ **SHA-1 mismatch fixed (2026-06-01).** Previously local debug builds and
    CI builds used different keystores; the SHA-1 registered in Google Cloud
