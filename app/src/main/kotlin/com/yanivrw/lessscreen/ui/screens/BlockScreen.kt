@@ -54,8 +54,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yanivrw.lessscreen.data.AuthRepository
 import com.yanivrw.lessscreen.data.BlockRepository
+import com.yanivrw.lessscreen.data.FriendsRepository
+import com.yanivrw.lessscreen.data.LockRepository
 import com.yanivrw.lessscreen.data.TRACKED_PACKAGES
 import com.yanivrw.lessscreen.data.models.BlockSchedule
+import com.yanivrw.lessscreen.data.models.Profile
 import com.yanivrw.lessscreen.permission.BlockPermission
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,7 +67,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-// CRC: crc-BlockViewModel.md | Seq: seq-schedule-sync.md | R18, R19, R20, R21, R22, R24
+// CRC: crc-BlockViewModel.md | Seq: seq-schedule-sync.md, seq-friend-lock-setup.md | R18, R19, R20, R21, R22, R24, R41
 class BlockViewModel : ViewModel() {
 
     data class UiState(
@@ -85,6 +88,9 @@ class BlockViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private val _friends = MutableStateFlow<List<Profile>>(emptyList())
+    val friends: StateFlow<List<Profile>> = _friends.asStateFlow()
+
     init {
         viewModelScope.launch {
             BlockRepository.schedules.collect { schedules ->
@@ -92,6 +98,7 @@ class BlockViewModel : ViewModel() {
             }
         }
         loadSchedules()
+        loadFriends()
     }
 
     fun loadSchedules() {
@@ -100,6 +107,10 @@ class BlockViewModel : ViewModel() {
             runCatching { BlockRepository.loadSchedules() }
             _uiState.update { it.copy(isLoading = false) }
         }
+    }
+
+    fun loadFriends() {
+        viewModelScope.launch { runCatching { _friends.value = FriendsRepository.listFriends() } }
     }
 
     fun addSchedule(draft: Draft) {
@@ -133,16 +144,38 @@ class BlockViewModel : ViewModel() {
     fun deleteSchedule(id: String) {
         viewModelScope.launch { runCatching { BlockRepository.deleteSchedule(id) } }
     }
+
+    // Seq: seq-friend-lock-setup.md#1.4 | R41
+    fun addFriendLock(scheduleId: String, friendUserId: String) {
+        viewModelScope.launch {
+            runCatching {
+                LockRepository.setLockPartner(scheduleId, friendUserId)
+                BlockRepository.loadSchedules()
+            }
+        }
+    }
+
+    // Seq: seq-friend-lock-setup.md#3.2 | R41
+    fun removeFriendLock(scheduleId: String) {
+        viewModelScope.launch {
+            runCatching {
+                LockRepository.removeLock(scheduleId)
+                BlockRepository.loadSchedules()
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlockScreen(vm: BlockViewModel = viewModel()) {
     val uiState by vm.uiState.collectAsState()
+    val friends by vm.friends.collectAsState()
     val context = LocalContext.current
     var showAdd by remember { mutableStateOf(false) }
     var hasOverlay by remember { mutableStateOf(BlockPermission.hasOverlayPermission(context)) }
     var hasAccessibility by remember { mutableStateOf(BlockPermission.hasAccessibilityEnabled(context)) }
+    var pendingLockScheduleId by remember { mutableStateOf<String?>(null) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         hasOverlay = BlockPermission.hasOverlayPermission(context)
@@ -167,7 +200,13 @@ fun BlockScreen(vm: BlockViewModel = viewModel()) {
                     CircularProgressIndicator(color = Color.White)
                 }
                 uiState.schedulesByApp.isEmpty() -> EmptyState()
-                else -> ScheduleList(uiState.schedulesByApp, vm::toggleSchedule, vm::deleteSchedule)
+                else -> ScheduleList(
+                    schedulesByApp = uiState.schedulesByApp,
+                    onToggle = vm::toggleSchedule,
+                    onDelete = vm::deleteSchedule,
+                    onAddLock = { scheduleId -> pendingLockScheduleId = scheduleId },
+                    onRemoveLock = vm::removeFriendLock,
+                )
             }
         }
     }
@@ -179,6 +218,17 @@ fun BlockScreen(vm: BlockViewModel = viewModel()) {
                 vm.addSchedule(draft)
                 showAdd = false
             },
+        )
+    }
+
+    if (pendingLockScheduleId != null) {
+        FriendPickerDialog(
+            friends = friends,
+            onSelect = { friendId ->
+                vm.addFriendLock(pendingLockScheduleId!!, friendId)
+                pendingLockScheduleId = null
+            },
+            onDismiss = { pendingLockScheduleId = null },
         )
     }
 }
@@ -225,6 +275,8 @@ private fun ScheduleList(
     schedulesByApp: Map<String, List<BlockSchedule>>,
     onToggle: (String, Boolean) -> Unit,
     onDelete: (String) -> Unit,
+    onAddLock: (String) -> Unit,
+    onRemoveLock: (String) -> Unit,
 ) {
     val appLabels = TRACKED_PACKAGES.toMap()
     LazyColumn(
@@ -243,7 +295,7 @@ private fun ScheduleList(
                 )
             }
             items(schedules, key = { it.id }) { schedule ->
-                ScheduleCard(schedule, onToggle, onDelete)
+                ScheduleCard(schedule, onToggle, onDelete, onAddLock, onRemoveLock)
             }
         }
     }
@@ -254,6 +306,8 @@ private fun ScheduleCard(
     schedule: BlockSchedule,
     onToggle: (String, Boolean) -> Unit,
     onDelete: (String) -> Unit,
+    onAddLock: (String) -> Unit,
+    onRemoveLock: (String) -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -272,6 +326,9 @@ private fun ScheduleCard(
                     fontWeight = FontWeight.Medium,
                 )
                 Text(formatDays(schedule.recurrenceDays), color = Color(0xFF888888), fontSize = 13.sp)
+                if (schedule.isFriendLocked) {
+                    Text("🔒 Friend locked", color = Color(0xFF6BB8FF), fontSize = 12.sp)
+                }
             }
             Switch(
                 checked = schedule.isEnabled,
@@ -281,6 +338,11 @@ private fun ScheduleCard(
                     checkedTrackColor = Color(0xFF30D158),
                 ),
             )
+            IconButton(onClick = {
+                if (schedule.isFriendLocked) onRemoveLock(schedule.id) else onAddLock(schedule.id)
+            }) {
+                Text(if (schedule.isFriendLocked) "🔓" else "🔒", fontSize = 18.sp)
+            }
             IconButton(onClick = { onDelete(schedule.id) }) {
                 Text("🗑", fontSize = 18.sp)
             }
@@ -401,6 +463,38 @@ private fun PickerDialog(state: TimePickerState, onDismiss: () -> Unit, onConfir
         confirmButton = { TextButton(onClick = onConfirm) { Text("OK") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         text = { TimePicker(state = state) },
+        containerColor = Color(0xFF1C1C1F),
+    )
+}
+
+// Seq: seq-friend-lock-setup.md#1.2 | R41
+@Composable
+private fun FriendPickerDialog(
+    friends: List<Profile>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Lock with a friend", color = Color.White, fontWeight = FontWeight.Bold) },
+        text = {
+            if (friends.isEmpty()) {
+                Text("Add friends first to use the friend-lock feature.", color = Color(0xFF888888))
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    friends.forEach { f ->
+                        TextButton(
+                            onClick = { onSelect(f.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(f.displayName ?: f.email, color = Color.White)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         containerColor = Color(0xFF1C1C1F),
     )
 }

@@ -75,6 +75,13 @@ object BlockRepository {
         clearQueue()
     }
 
+    // Seq: seq-friend-lock-overlay.md#2.8 | R38
+    fun updateUnlockedUntil(scheduleId: String, unlockedUntil: String?) {
+        _schedules.value = _schedules.value.map { s ->
+            if (s.id == scheduleId) s.copy(unlockedUntil = unlockedUntil) else s
+        }
+    }
+
     private fun updateCache(schedule: BlockSchedule) {
         val list = _schedules.value.toMutableList()
         val idx = list.indexOfFirst { it.id == schedule.id }

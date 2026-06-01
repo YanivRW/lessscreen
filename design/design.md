@@ -1,11 +1,12 @@
-# Design: App Blocking Feature
+# Design: App Blocking + Friend-Lock
 
 ## Intent
 
 Allow users to block tracked social media apps during configurable time windows.
 An `AccessibilityService` detects when a blocked app is foregrounded and shows a
-full-screen `TYPE_APPLICATION_OVERLAY`. Schedules are stored in Supabase so the
-architecture can later accommodate a friend-lock feature without a schema rewrite.
+full-screen `TYPE_APPLICATION_OVERLAY`. Schedules are stored in Supabase.
+A trusted friend can be assigned as a "lock partner" for a schedule; the overlay
+then requires a PIN (set by the friend on their own device) to dismiss.
 
 ## Cross-cutting Concerns
 
@@ -19,6 +20,12 @@ architecture can later accommodate a friend-lock feature without a schema rewrit
   without their respective permissions.
 - **No regressions:** the Block tab is appended to the existing bottom nav;
   no existing screen logic is changed.
+- **Realtime:** `LockRepository` opens a Supabase Realtime channel on
+  `blocking_schedules` for locked schedules; the service reacts to
+  `unlocked_until` changes within a few seconds without polling.
+- **PIN security:** `passcode_hash` lives in `block_lock_pins` (no select RLS).
+  All hash operations run inside `security definer` RPCs; the client never
+  receives the hash.
 
 ## Artifacts
 
@@ -29,13 +36,18 @@ architecture can later accommodate a friend-lock feature without a schema rewrit
 - [ ] crc-BlockOverlay.md → `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockOverlay.kt`
 - [ ] crc-BlockViewModel.md → `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/BlockScreen.kt`
 - [ ] crc-PermissionGuide.md → `app/src/main/kotlin/com/yanivrw/lessscreen/permission/BlockPermission.kt`
+- [ ] crc-LockRepository.md → `app/src/main/kotlin/com/yanivrw/lessscreen/data/LockRepository.kt`
 
 ### Sequences
 - [ ] seq-block-detection.md → `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockAccessibilityService.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockOverlay.kt`
 - [ ] seq-schedule-sync.md → `app/src/main/kotlin/com/yanivrw/lessscreen/data/BlockRepository.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/BlockScreen.kt`
+- [ ] seq-friend-lock-setup.md → `app/src/main/kotlin/com/yanivrw/lessscreen/data/LockRepository.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/FriendsScreen.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/BlockScreen.kt`
+- [ ] seq-friend-lock-overlay.md → `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockAccessibilityService.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockOverlay.kt`, `app/src/main/kotlin/com/yanivrw/lessscreen/data/LockRepository.kt`
 
 ### UI Layouts
 - [ ] ui-block-screen.md → `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/BlockScreen.kt`
+- [ ] ui-lock-overlay.md → `app/src/main/kotlin/com/yanivrw/lessscreen/blocking/BlockOverlay.kt`
+- [ ] ui-lock-management.md → `app/src/main/kotlin/com/yanivrw/lessscreen/ui/screens/FriendsScreen.kt`
 
 ### Test Designs
 - [ ] test-BlockRepository.md → `app/src/test/kotlin/com/yanivrw/lessscreen/BlockRepositoryTest.kt`

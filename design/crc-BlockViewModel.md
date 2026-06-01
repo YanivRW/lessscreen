@@ -1,5 +1,5 @@
 # BlockViewModel
-**Requirements:** R18, R19, R20, R21, R22, R24
+**Requirements:** R18, R19, R20, R21, R22, R24, R41
 
 ViewModel for the Block screen. Exposes schedule state to the UI and routes
 mutations through BlockRepository.

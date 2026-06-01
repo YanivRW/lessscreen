@@ -1,5 +1,5 @@
 # BlockRepository
-**Requirements:** R1, R5, R6, R7, R8, R9, R10, R23
+**Requirements:** R1, R5, R6, R7, R8, R9, R10, R23, R33, R34, R38, R39
 
 Single source of truth for blocking schedules. Bridges Supabase and local
 in-memory cache; queues writes when offline.
@@ -18,9 +18,11 @@ in-memory cache; queues writes when offline.
 
 ## Collaborators
 - SupabaseClient: all Supabase I/O
-- BlockSchedule: the data shape
+- BlockSchedule: the data shape (now includes unlocked_until, locked_by_user_id)
 - BlockService: observes schedules StateFlow to stay up-to-date (R23)
 - BlockViewModel: calls save/delete, observes StateFlow
+- LockRepository: calls subscribeUnlockState for locked schedules (R38)
 
 ## Sequences
 - seq-schedule-sync.md
+- seq-friend-lock-overlay.md
