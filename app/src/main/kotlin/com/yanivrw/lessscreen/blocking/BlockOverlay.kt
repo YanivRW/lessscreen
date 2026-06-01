@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -48,11 +49,20 @@ class BlockOverlay(private val context: Context) {
                 setPadding(0, 0, 0, 48)
             })
             addView(Button(context).apply {
-                text = "← Go Back"
+                text = "← Go Home"
                 setTextColor(Color.WHITE)
                 setBackgroundColor(Color.rgb(44, 44, 46))
                 setOnClickListener { onGoBack() }
             })
+
+            // OS back button should also go home
+            isFocusableInTouchMode = true
+            requestFocus()
+            setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    onGoBack(); true
+                } else false
+            }
         }
 
         val params = WindowManager.LayoutParams(

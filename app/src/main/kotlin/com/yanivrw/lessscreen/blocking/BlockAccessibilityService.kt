@@ -36,7 +36,7 @@ class BlockAccessibilityService : AccessibilityService() {
         // Seq: seq-block-detection.md#1.6
         val blocked = BlockRepository.schedules.value.any { it.packageName == pkg && it.isActiveNow() }
         // Seq: seq-block-detection.md#1.7.1
-        if (blocked) overlay.show(tracked.second) { performGlobalAction(GLOBAL_ACTION_BACK) }
+        if (blocked) overlay.show(tracked.second) { performGlobalAction(GLOBAL_ACTION_HOME) }
         else overlay.hide()
     }
 
