@@ -108,7 +108,10 @@ customizable is a planned feature — see product direction.
 **Working:** email sign-up/sign-in + session persistence · today screen
 (per-app usage, 60s auto-refresh, midnight reset, uploads to Supabase, permission
 prompt) · scoreboard (7-day line chart, today's ranking with medals) · friends
-(invite code, copy/share, add by code, mutual friendship, list).
+(invite code, copy/share, add by code, mutual friendship, list) · app blocking
+(AccessibilityService overlay, per-app schedules with time windows + day-of-week
+recurrence, Supabase sync with offline queue, `blocking_schedules` table with
+`locked_by_user_id` stub for future friend-lock).
 
 **Broken:** Google Sign-In ("No credentials available"). Email/password is the
 working fallback. Deferred — not a current priority. Full debugging history in
@@ -123,10 +126,9 @@ show 0 until opened) · debug APK shows "unknown source" warning (expected).
 Three pillars guide new work. The detailed session-by-session steering lives in
 the prompt I paste in, but the strategy is stable:
 
-1. **Core blocker (new capability).** Beyond *measuring* usage, actively
-   *restrict* apps (and later in-app features) during user-defined hours. This is
-   the biggest architectural change vs. today's read-only model — needs an
-   `AccessibilityService` / overlay approach. Plan before building.
+1. **Core blocker (shipped v0.5.0).** `AccessibilityService` + overlay blocks
+   apps during user-defined schedules. Next: polish (block screen UX, edge cases),
+   then in-app feature blocking and the friend-lock layer.
 2. **Social/gamified layer (extend what works).** Keep building friends +
    leaderboard. Frame around "time spent **off** the apps." Priority: rock-solid
    syncing and near-real-time standings (competitors are laggy — this is a
@@ -137,10 +139,10 @@ the prompt I paste in, but the strategy is stable:
    architecture flexible enough to slot it in without a rewrite.
 
 **Planned features** (many feed the direction above): per-app daily/weekly goals
-and a customizable tracked-apps list (foundational to scheduled blocking) ·
-streaks (reinforce the detox loop) · per-app friend breakdown on the leaderboard ·
-7-day chart on the today screen · push notifications · weekly summaries ·
-display-name editing (DB field exists, no UI yet).
+and a customizable tracked-apps list · streaks (reinforce the detox loop) ·
+per-app friend breakdown on the leaderboard · 7-day chart on the today screen ·
+push notifications · weekly summaries · display-name editing (DB field exists,
+no UI yet).
 
 ## End-of-session habit
 
