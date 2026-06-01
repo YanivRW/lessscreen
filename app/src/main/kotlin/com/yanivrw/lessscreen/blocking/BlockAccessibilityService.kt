@@ -26,8 +26,10 @@ class BlockAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
+        // Our own overlay stole focus — keep it showing, don't hide.
+        if (pkg == packageName) return
         val tracked = TRACKED_PACKAGES.find { it.first == pkg }
-        if (pkg == packageName || tracked == null) {
+        if (tracked == null) {
             overlay.hide()
             return
         }
