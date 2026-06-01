@@ -32,6 +32,7 @@ object AuthRepository {
     }
 
     suspend fun signUp(email: String, password: String) {
+        if (supabase.auth.currentUserOrNull() != null) supabase.auth.signOut()
         supabase.auth.signUpWith(Email) {
             this.email = email
             this.password = password

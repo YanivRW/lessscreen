@@ -9,3 +9,7 @@ captures/
 .cxx/
 *.apk
 *.aab
+
+# Signing — keystore is backed up in 1Password, mirrored to GitHub secrets
+keystore/
+keystore.properties

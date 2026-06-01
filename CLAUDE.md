@@ -56,9 +56,13 @@ models in `data/models/Models.kt`. New features follow this layout.
 
 ## Critical guardrails (do not break)
 
-- **Never regenerate the signing keystore.** The `KEYSTORE_BASE64` GitHub secret
-  must stay set. If it's lost, the SHA-1 changes and Google Sign-In registration
-  breaks. Stable SHA-1: `3E:FB:0C:94:4A:D9:72:BA:4A:3D:7B:A4:C7:10:18:68:88:0E:BD:11`
+- **Never regenerate the signing keystore.** It lives at `keystore/lessscreen.jks`
+  (gitignored), backed up in 1Password, and mirrored to GitHub secrets
+  `KEYSTORE_BASE64` + `KEYSTORE_PASSWORD`. Local builds and CI both consume it
+  via `keystore.properties` → `signingConfigs["lessscreen"]` in
+  `app/build.gradle.kts`. Losing it = SHA-1 changes = Google Sign-In breaks and
+  Play Store updates become impossible.
+  Stable SHA-1: `C3:3E:38:45:24:5B:C7:B4:10:6D:06:EB:83:B2:D7:0B:68:38:FF:AE`
 - **Never change the package** `com.yanivrw.lessscreen`.
 - **No regressions** to working features (today screen, leaderboard, friends,
   email auth) when adding new ones.
@@ -110,9 +114,23 @@ customizable is a planned feature — see product direction.
 prompt) · scoreboard (7-day line chart, today's ranking with medals) · friends
 (invite code, copy/share, add by code, mutual friendship, list).
 
-**Broken:** Google Sign-In ("No credentials available"). Email/password is the
-working fallback. Deferred — not a current priority. Full debugging history in
-`.claude/rules/google-signin-detail.md`.
+**In progress:** Google Sign-In — SHA-1 mismatch fixed (2026-06-01, new keystore
++ new fingerprint registered in Google Cloud). Now blocked on Supabase audience
+mismatch: ID token's `aud` is the Web client ID, but Supabase →
+Authentication → Providers → Google has a different Client ID configured. Next
+step: set "Authorized Client IDs" in Supabase to
+`846082142354-t0uud57mv19lt618nmto47jent3hut81.apps.googleusercontent.com`
+and paste the Web client's secret. Full history in
+`.claude/rules/google-signin-detail.md`. Email/password remains the working
+fallback.
+
+**Open (next session):** "Database error saving new user" when signing up a
+second account from the same phone with a different email. Likely the
+`on_auth_user_created` trigger throwing on a unique-constraint violation in
+`profiles.email` or `profiles.invite_code`. Need a Supabase → Logs → Postgres
+Logs capture at the time of failure to identify the constraint. Also check that
+the prior user wasn't still signed in when retrying — `AuthRepository.signUp`
+doesn't call `signOut` first.
 
 **Known quirks:** scoreboard chart needs ≥1 day of data per user to draw a line ·
 `UsageStatsManager` only reports apps the user has actually opened (new installs

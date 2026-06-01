@@ -25,39 +25,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # If KEYSTORE_BASE64 secret exists: restore stable keystore.
-      # If not: generate one, print base64 + SHA-1 so you can save it as a secret.
-      - name: Set up signing keystore
+      # Restore project keystore from secrets — same fingerprint locally & in CI.
+      - name: Restore signing keystore
         run: |
-          mkdir -p ~/.android
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-            echo "✅ Restored stable keystore from secret."
-          else
-            keytool -genkeypair -v \
-              -keystore ~/.android/debug.keystore \
-              -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 36500 \
-              -storepass android -keypass android \
-              -dname "CN=LessScreen Debug, O=LessScreen" 2>/dev/null
-            echo ""
-            echo "========================================================"
-            echo "⚠️  FIRST RUN: new keystore generated."
-            echo "Copy everything between the --- lines as the GitHub secret KEYSTORE_BASE64:"
-            echo "---"
-            base64 -w 0 ~/.android/debug.keystore
-            echo ""
-            echo "---"
-            echo "========================================================"
-          fi
-          echo ""
-          echo "=== SHA-1 to register in Google Cloud Console ==="
+          mkdir -p keystore
+          echo "$KEYSTORE_B64" | base64 -d > keystore/lessscreen.jks
+          cat > keystore.properties <<EOF
+          storeFile=keystore/lessscreen.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=lessscreen
+          keyPassword=$KEYSTORE_PASSWORD
+          EOF
+          echo "=== SHA-1 (must match Google Cloud OAuth Android client) ==="
           keytool -list -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android 2>/dev/null | grep "SHA1:"
+            -keystore keystore/lessscreen.jks \
+            -alias lessscreen \
+            -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep "SHA1:"
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
       - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version 8.9 --distribution-type bin
